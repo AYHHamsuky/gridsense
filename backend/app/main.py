@@ -81,6 +81,16 @@ def feeders():
     return {"feeders": list(store.feeders.values()), "areas": list(store.areas.values())}
 
 
+@app.get("/demo/samples")
+def samples(n: int = 20, seed: int = 0):
+    """Synthetic reports for storm-mode demos (ground-truth labels stripped)."""
+    import random
+    pool = list(store.sample_reports)
+    random.Random(seed).shuffle(pool)
+    keep = ("customer_name", "phone", "channel", "text", "area_hint")
+    return [{k: r[k] for k in keep} for r in pool[:n]]
+
+
 @app.post("/demo/reset")
 def reset():
     store.reset()

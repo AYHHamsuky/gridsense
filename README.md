@@ -32,8 +32,14 @@ cp .env.example .env          # add MODEL_API_KEY from https://dev.meta.ai
 python data/generate_synthetic.py
 python scripts/smoke_test.py  # one Muse Spark call + one full agent run
 uvicorn backend.app.main:app --reload   # API docs at http://127.0.0.1:8000/docs
+streamlit run ui/app.py                 # UI at http://localhost:8501 (2nd terminal)
 pytest                        # offline tests (no API key needed)
 ```
+
+## UI (Streamlit)
+- **Report an outage:** customer chat in Hausa/English, plus voice notes
+- **Dispatch dashboard:** live fault map, fault table, and the agent's step-by-step reasoning
+- **Storm mode:** replay up to 150 synthetic reports and watch them merge into a few faults
 
 ## API
 | Method | Path | Purpose |
@@ -47,6 +53,7 @@ pytest                        # offline tests (no API key needed)
 
 ## Layout
 ```
+ui/           Streamlit UI (calls the API)
 backend/app/   FastAPI app, Meta client, agent loop, tools, in-memory store
 data/          synthetic data generator + generated JSON
 scripts/       smoke test
