@@ -1,0 +1,172 @@
+[
+  {
+    "name": "Barnawa",
+    "feeder_id": "FDR-01",
+    "lat": 10.4806,
+    "lon": 7.4436,
+    "landmarks": [
+      "Barnawa market",
+      "Kamazou junction"
+    ]
+  },
+  {
+    "name": "Narayi",
+    "feeder_id": "FDR-01",
+    "lat": 10.4669,
+    "lon": 7.456,
+    "landmarks": [
+      "Narayi high cost",
+      "Narayi roundabout"
+    ]
+  },
+  {
+    "name": "Television",
+    "feeder_id": "FDR-01",
+    "lat": 10.493,
+    "lon": 7.422,
+    "landmarks": [
+      "Television garage",
+      "NTA road"
+    ]
+  },
+  {
+    "name": "Kakuri",
+    "feeder_id": "FDR-01",
+    "lat": 10.487,
+    "lon": 7.412,
+    "landmarks": [
+      "Kakuri market",
+      "UNTL road"
+    ]
+  },
+  {
+    "name": "Kawo",
+    "feeder_id": "FDR-02",
+    "lat": 10.5822,
+    "lon": 7.447,
+    "landmarks": [
+      "Kawo bridge",
+      "Kawo motor park"
+    ]
+  },
+  {
+    "name": "Hayin Banki",
+    "feeder_id": "FDR-02",
+    "lat": 10.573,
+    "lon": 7.438,
+    "landmarks": [
+      "Hayin Banki mosque",
+      "Rafin Guza"
+    ]
+  },
+  {
+    "name": "Mando",
+    "feeder_id": "FDR-02",
+    "lat": 10.61,
+    "lon": 7.43,
+    "landmarks": [
+      "Mando junction",
+      "Mando garage"
+    ]
+  },
+  {
+    "name": "Unguwan Dosa",
+    "feeder_id": "FDR-02",
+    "lat": 10.565,
+    "lon": 7.455,
+    "landmarks": [
+      "Dosa water works",
+      "Isa Kaita road"
+    ]
+  },
+  {
+    "name": "Sabon Tasha",
+    "feeder_id": "FDR-03",
+    "lat": 10.45,
+    "lon": 7.476,
+    "landmarks": [
+      "Sabon Tasha market",
+      "Station road"
+    ]
+  },
+  {
+    "name": "Gonin Gora",
+    "feeder_id": "FDR-03",
+    "lat": 10.432,
+    "lon": 7.442,
+    "landmarks": [
+      "Gonin Gora tollgate",
+      "Gonin Gora junction"
+    ]
+  },
+  {
+    "name": "Kudenda",
+    "feeder_id": "FDR-03",
+    "lat": 10.46,
+    "lon": 7.4,
+    "landmarks": [
+      "Kudenda bridge",
+      "Kudenda industrial"
+    ]
+  },
+  {
+    "name": "Tudun Wada",
+    "feeder_id": "FDR-04",
+    "lat": 10.505,
+    "lon": 7.415,
+    "landmarks": [
+      "Tudun Wada market",
+      "Sokoto road"
+    ]
+  },
+  {
+    "name": "Rigasa",
+    "feeder_id": "FDR-04",
+    "lat": 10.525,
+    "lon": 7.38,
+    "landmarks": [
+      "Rigasa station",
+      "Rigasa market"
+    ]
+  },
+  {
+    "name": "Badiko",
+    "feeder_id": "FDR-04",
+    "lat": 10.5,
+    "lon": 7.43,
+    "landmarks": [
+      "Badiko primary school",
+      "Badiko junction"
+    ]
+  },
+  {
+    "name": "Malali",
+    "feeder_id": "FDR-05",
+    "lat": 10.545,
+    "lon": 7.462,
+    "landmarks": [
+      "Malali GRA",
+      "Malali village"
+    ]
+  },
+  {
+    "name": "Ungwan Rimi",
+    "feeder_id": "FDR-05",
+    "lat": 10.535,
+    "lon": 7.45,
+    "landmarks": [
+      "Rimi GRA",
+      "Kanta road"
+    ]
+  },
+  {
+    "name": "Kabala",
+    "feeder_id": "FDR-05",
+    "lat": 10.515,
+    "lon": 7.47,
+    "landmarks": [
+      "Kabala Costain",
+      "Kabala West"
+    ]
+  }
+]

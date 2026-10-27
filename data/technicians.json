@@ -1,0 +1,112 @@
+[
+  {
+    "id": "TECH-01",
+    "name": "Aisha Aliyu",
+    "phone": "+2348000000000",
+    "base_area": "Kakuri",
+    "skills": [
+      "meter",
+      "lines"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-02",
+    "name": "Hauwa Aliyu",
+    "phone": "+2348000000001",
+    "base_area": "Unguwan Dosa",
+    "skills": [
+      "lines",
+      "meter"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-03",
+    "name": "Yusuf Abubakar",
+    "phone": "+2348000000002",
+    "base_area": "Television",
+    "skills": [
+      "lines",
+      "protection"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-04",
+    "name": "Sani Yakubu",
+    "phone": "+2348000000003",
+    "base_area": "Mando",
+    "skills": [
+      "lines",
+      "meter"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-05",
+    "name": "Yusuf Suleiman",
+    "phone": "+2348000000004",
+    "base_area": "Mando",
+    "skills": [
+      "protection",
+      "meter"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-06",
+    "name": "Aisha Ibrahim",
+    "phone": "+2348000000005",
+    "base_area": "Sabon Tasha",
+    "skills": [
+      "protection",
+      "transformer"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-07",
+    "name": "Hauwa Suleiman",
+    "phone": "+2348000000006",
+    "base_area": "Sabon Tasha",
+    "skills": [
+      "meter",
+      "lines"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-08",
+    "name": "Halima Danjuma",
+    "phone": "+2348000000007",
+    "base_area": "Television",
+    "skills": [
+      "meter",
+      "transformer"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-09",
+    "name": "Musa Aliyu",
+    "phone": "+2348000000008",
+    "base_area": "Sabon Tasha",
+    "skills": [
+      "protection",
+      "meter"
+    ],
+    "available": true
+  },
+  {
+    "id": "TECH-10",
+    "name": "Halima Danjuma",
+    "phone": "+2348000000009",
+    "base_area": "Kakuri",
+    "skills": [
+      "meter",
+      "protection"
+    ],
+    "available": true
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "FDR-01",
+    "name": "Barnawa 11kV",
+    "substation": "South Injection"
+  },
+  {
+    "id": "FDR-02",
+    "name": "Kawo 11kV",
+    "substation": "North Injection"
+  },
+  {
+    "id": "FDR-03",
+    "name": "Sabon Tasha 11kV",
+    "substation": "South Injection"
+  },
+  {
+    "id": "FDR-04",
+    "name": "Tudun Wada 11kV",
+    "substation": "Central Injection"
+  },
+  {
+    "id": "FDR-05",
+    "name": "Malali 11kV",
+    "substation": "North Injection"
+  }
+]
