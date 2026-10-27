@@ -23,6 +23,7 @@ class Store:
         self.sample_reports = _load("reports")
         self.reports = {}
         self.faults = {}
+        self.inspections = {}  # fault_id -> list of inspection results
         self.events = []  # agent audit log: every tool call + reason
         self._fault_seq = 0
 

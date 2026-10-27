@@ -67,7 +67,8 @@ def fault_map(df):
 # ---------------- sidebar ----------------
 st.sidebar.title("⚡ GridSense")
 st.sidebar.caption("Hausa/English outage & fault agent")
-page = st.sidebar.radio("View", ["📱 Report an outage", "🗺️ Dispatch dashboard", "🌩️ Storm mode"])
+page = st.sidebar.radio("View", ["📱 Report an outage", "🗺️ Dispatch dashboard",
+                                 "🔧 Technician inspection", "🌩️ Storm mode"])
 health = api("GET", "/health")
 st.sidebar.write("API:", "🟢 online" if health else "🔴 offline")
 if st.sidebar.button("Reset demo data"):
@@ -137,10 +138,50 @@ elif page.startswith("🗺️"):
                 if e["kind"] == "tool":
                     st.code(f"{e['report_id']} → {d['name']}({d['args']})\n   ↳ {d['result']}",
                             language="text")
+                elif e["kind"] == "inspection":
+                    v = d["verdict"]
+                    st.warning(f"🔧 Photo inspection ({d['phrase']}): **{v.get('verdict')}** "
+                               f"({v.get('confidence')}) — {'; '.join(v.get('findings', []))}")
                 else:
                     st.success(f"{e['report_id']}: {d.get('reasoning', '')}")
     if st.button("🔄 Refresh"):
         st.rerun()
+
+# ---------------- technician ----------------
+elif page.startswith("🔧"):
+    st.header("Technician inspection")
+    st.caption("Upload the repair photo. SAM 3.1 finds the equipment; Muse Spark checks "
+               "the repair is complete and safe, then closes the fault.")
+    faults = [f for f in (api("GET", "/faults") or []) if f["status"] != "closed"]
+    if not faults:
+        st.info("No open faults. Send some reports first.")
+    else:
+        labels = {f"{f['id']} · {f['fault_type']} · {', '.join(f['areas'])}": f["id"] for f in faults}
+        fid = labels[st.selectbox("Fault", list(labels))]
+        c1, c2 = st.columns(2)
+        before = c1.file_uploader("Before photo (optional)", type=["jpg", "jpeg", "png", "webp"])
+        after = c2.file_uploader("After-repair photo", type=["jpg", "jpeg", "png", "webp"])
+        if after and st.button("Run inspection"):
+            files = {"after": (after.name, after.getvalue(), after.type)}
+            if before:
+                files["before"] = (before.name, before.getvalue(), before.type)
+            with st.spinner("SAM 3.1 segmenting · Muse Spark inspecting…"):
+                res = api("POST", f"/faults/{fid}/inspection", files=files)
+            if res:
+                v = res["verdict"]
+                icon = {"resolved": "✅", "unsafe": "⛔", "not_resolved": "❌"}.get(v.get("verdict"), "❔")
+                st.subheader(f"{icon} {v.get('verdict', '?').replace('_', ' ').title()} "
+                             f"· confidence {v.get('confidence')} · fault now **{res['status']}**")
+                cols = st.columns(len(res["overlays"]))
+                for col, (name, url) in zip(cols, sorted(res["overlays"].items(), reverse=True)):
+                    n = len(res["detections"].get(name, []))
+                    col.image(url, caption=f"{name}: {n} × {res['phrase']} found by SAM 3.1")
+                if res.get("sam_errors"):
+                    st.caption(f"SAM issues: {res['sam_errors']}")
+                st.write("**Findings:**", v.get("findings", []))
+                if v.get("safety_issues"):
+                    st.error("Safety: " + "; ".join(v["safety_issues"]))
+                st.info(f"📣 {v.get('customer_message_en', '')}\n\n🗣️ {v.get('customer_message_ha', '')}")
 
 # ---------------- storm ----------------
 else:

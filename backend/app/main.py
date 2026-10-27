@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import agent, meta_client
+from . import agent, meta_client, vision
 from .store import store
 
 app = FastAPI(title="GridSense", version="0.1.0",
@@ -67,8 +67,35 @@ def get_fault(fault_id: str):
     if not f:
         raise HTTPException(404, "fault not found")
     reports = [store.reports[r] for r in f["report_ids"] if r in store.reports]
-    events = [e for e in store.events if e["report_id"] in f["report_ids"]]
+    events = [e for e in store.events if e["report_id"] in f["report_ids"] or e["report_id"] == fault_id]
     return {**f, "reports": reports, "events": events}
+
+
+@app.post("/faults/{fault_id}/inspection")
+async def inspect_fault(fault_id: str, after: UploadFile = File(...),
+                        before: UploadFile | None = File(None)):
+    """Technician uploads repair photo(s): SAM 3.1 locates equipment, Muse Spark judges."""
+    f = store.faults.get(fault_id)
+    if not f:
+        raise HTTPException(404, "fault not found")
+    after_b = await after.read()
+    before_b = await before.read() if before else None
+    try:
+        result = vision.inspect(f, after_b, before_b or None)
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    v = result["verdict"]
+    store.inspections.setdefault(fault_id, []).append(result)
+    store.log(fault_id, "inspection", {"phrase": result["phrase"], "detections": result["detections"],
+                                       "verdict": v})
+    if v.get("verdict") == "resolved" and float(v.get("confidence", 0)) >= 0.6:
+        f["status"] = "closed"
+        if f["technician_id"] in store.technicians:
+            store.technicians[f["technician_id"]]["available"] = True
+    elif v.get("verdict") == "unsafe":
+        f["status"] = "unsafe_followup"
+    f["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return {"fault_id": fault_id, "status": f["status"], **result}
 
 
 @app.get("/events")
