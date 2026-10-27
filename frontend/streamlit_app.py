@@ -91,19 +91,19 @@ with tab_report:
                         st.error(str(e))
     else:
         with st.form("voice_report"):
-            audio = st.file_uploader("Voice note (WAV)", type=["wav"])
+            audio = st.audio_input("Record a voice note (Hausa or English)", sample_rate=16000)
             c1, c2 = st.columns(2)
             area = c1.text_input("Area hint")
             phone = c2.text_input("Phone")
             submitted = st.form_submit_button("Transcribe & triage", type="primary")
         if submitted:
             if not audio:
-                st.warning("Upload a WAV file first.")
+                st.warning("Record a voice note first.")
             else:
                 with st.spinner("Transcribing and triaging…"):
                     try:
                         out = api("POST", "/reports/voice",
-                                  files={"audio": (audio.name, audio.getvalue(), "audio/wav")},
+                                  files={"audio": ("voice_note.wav", audio.getvalue(), "audio/wav")},
                                   data={"area_hint": area, "phone": phone})
                         st.success(f"Report {out['report_id']} processed")
                         st.write(f"**Transcript:** {out['transcript']}")

@@ -50,8 +50,9 @@ async def create_voice_report(audio: UploadFile = File(...), area_hint: str = Fo
         asr = meta_client.transcribe(data, audio.filename or "audio.wav")
     except RuntimeError as e:
         raise HTTPException(503, str(e))
-    # TranscribeResponse shape: confirm on Day 1 and adjust this extraction
-    text = asr.get("text") or asr.get("transcript") or str(asr)
+    text = (asr.get("transcript") or "").strip()
+    if not text:
+        raise HTTPException(422, "No speech detected in the voice note")
     report = _new_report(text=text, area_hint=area_hint, phone=phone, channel="voice")
     return {"report_id": report["id"], "transcript": text, "result": agent.triage(report)}
 

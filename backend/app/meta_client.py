@@ -26,12 +26,12 @@ def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
     """Transcribe a recorded voice note with Muse Voice Transcribe.
 
     Multipart body: `request` (JSON settings) + `audio` (the clip). WAV for now;
-    convert other formats with ffmpeg before calling. Verify field values
-    against the Voice schemas page on Day 1.
+    convert other formats with ffmpeg before calling. The response carries the
+    text in `transcript`.
     """
     if not MODEL_API_KEY:
         raise RuntimeError("MODEL_API_KEY is not set.")
-    settings = {"model": TRANSCRIBE_MODEL, "encoding": "WAV", "mode": "PUSH_TO_TALK"}
+    settings = {"model": TRANSCRIBE_MODEL, "audioEncoding": "WAV", "mode": "PUSH_TO_TALK"}
     r = httpx.post(
         f"{META_BASE_URL}/asr/transcribe",
         headers={"Authorization": f"Bearer {MODEL_API_KEY}", "Accept": "application/json"},
@@ -41,5 +41,6 @@ def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> dict:
         },
         timeout=120,
     )
-    r.raise_for_status()
+    if r.is_error:
+        raise RuntimeError(f"Transcription failed ({r.status_code}): {r.text[:500]}")
     return r.json()
