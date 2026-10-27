@@ -13,15 +13,16 @@ When a transformer fails in a Kaduna neighbourhood, hundreds of customers call o
 1. **Intake:** customers report by text or voice note, in Hausa or English.
 2. **Triage agent:** Muse Spark works out the fault type, finds the right feeder, and either opens a new fault or merges the report into an existing one.
 3. **Dispatch:** assigns a technician with the right skill, preferring someone who covers that feeder.
-4. **Reply:** answers the customer in their own language with a fault ID and safety advice.
-5. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
+4. **Repair check:** the technician uploads a photo; SAM 3.1 finds the transformer/pole/meter and Muse Spark decides if the repair is complete and safe before closing the fault.
+5. **Reply:** answers the customer in their own language with a fault ID and safety advice.
+6. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
 
 ## Meta models used
 | Feature | Model | Status |
 |---|---|---|
 | Triage + dispatch agent (tool calling) | Muse Spark (`muse-spark-1.3`) | ✅ Day 1 |
-| Hausa/English voice notes | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | 🚧 |
-| Technician repair-photo check | SAM 3.1 + Muse Spark vision | 🔜 |
+| Hausa/English voice notes | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | ✅ Day 1 |
+| Technician repair-photo check | SAM 3.1 (`sam-3.1`) + Muse Spark vision | ✅ Day 1 |
 | Bulk classification in outage spikes | Muse Spark Open (Baseten/Modal) | 🔜 |
 
 ## Quick start
@@ -32,12 +33,17 @@ cp .env.example .env          # add MODEL_API_KEY from https://dev.meta.ai
 python data/generate_synthetic.py
 python scripts/smoke_test.py  # one Muse Spark call + one full agent run
 uvicorn backend.app.main:app --reload   # API docs at http://127.0.0.1:8000/docs
-streamlit run frontend/streamlit_app.py  # dashboard at http://localhost:8501
+streamlit run frontend/streamlit_app.py  # UI at http://localhost:8501 (2nd terminal)
 pytest                        # offline tests (no API key needed)
 ```
 
-## Dashboard
-The Streamlit app in `frontend/` calls the API (set `GRIDSENSE_API_URL` if it is not on `http://127.0.0.1:8000`). Tabs: submit text/voice reports (with synthetic samples), fault list and detail with the agent's tool calls, a map of affected areas, and the full audit log.
+## UI (Streamlit)
+`frontend/streamlit_app.py` calls the API; set `GRIDSENSE_API_URL` if it is not on `http://127.0.0.1:8000`.
+- **Report an outage:** customer chat in Hausa/English, plus voice notes recorded in the browser
+- **Dispatch dashboard:** live fault map, fault table, and the agent's step-by-step reasoning
+- **Technician inspection:** upload before/after photos; SAM 3.1 boxes the equipment, Muse Spark gives a verdict and closes the fault
+- **Agent log:** every tool call and verdict, newest first
+- **Storm mode:** replay up to 150 synthetic reports and watch them merge into a few faults
 
 ## API
 | Method | Path | Purpose |
@@ -45,6 +51,7 @@ The Streamlit app in `frontend/` calls the API (set `GRIDSENSE_API_URL` if it is
 | POST | `/reports` | Text report → agent triage |
 | POST | `/reports/voice` | WAV voice note → transcribe → triage |
 | GET | `/faults` · `/faults/{id}` | Fault list / detail with reports + agent events |
+| POST | `/faults/{id}/inspection` | Repair photos → SAM 3.1 + Muse Spark verdict |
 | GET | `/events` | Agent audit log |
 | GET | `/feeders` | Feeders and areas (for the map) |
 | POST | `/demo/reset` | Reset demo state |
