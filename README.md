@@ -32,8 +32,12 @@ cp .env.example .env          # add MODEL_API_KEY from https://dev.meta.ai
 python data/generate_synthetic.py
 python scripts/smoke_test.py  # one Muse Spark call + one full agent run
 uvicorn backend.app.main:app --reload   # API docs at http://127.0.0.1:8000/docs
+streamlit run frontend/streamlit_app.py  # dashboard at http://localhost:8501
 pytest                        # offline tests (no API key needed)
 ```
+
+## Dashboard
+The Streamlit app in `frontend/` calls the API (set `GRIDSENSE_API_URL` if it is not on `http://127.0.0.1:8000`). Tabs: submit text/voice reports (with synthetic samples), fault list and detail with the agent's tool calls, a map of affected areas, and the full audit log.
 
 ## API
 | Method | Path | Purpose |
@@ -48,6 +52,7 @@ pytest                        # offline tests (no API key needed)
 ## Layout
 ```
 backend/app/   FastAPI app, Meta client, agent loop, tools, in-memory store
+frontend/      Streamlit dashboard
 data/          synthetic data generator + generated JSON
 scripts/       smoke test
 tests/         offline tests with a scripted fake model
