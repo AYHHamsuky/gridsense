@@ -125,10 +125,14 @@ def feeders():
 
 
 @app.get("/demo/samples")
-def samples(n: int = 20, seed: int = 0, labels: bool = False):
-    """Synthetic reports for storm-mode demos. labels=true adds ground truth for scoring."""
+def samples(n: int = 20, seed: int = 0, labels: bool = False, scenario: str = "storm"):
+    """Synthetic reports for storm-mode demos. labels=true adds ground truth for scoring.
+
+    scenario=storm: a realistic burst around a few incidents (collapses into a handful of faults).
+    scenario=spread: reports spread evenly across every area and fault type (stress test).
+    """
     import random
-    pool = list(store.sample_reports)
+    pool = list(store.storm_reports if scenario == "storm" else store.sample_reports)
     random.Random(seed).shuffle(pool)
     keep = ("customer_name", "phone", "channel", "text", "area_hint")
     keep += ("expected_fault_type",) if labels else ()

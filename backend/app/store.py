@@ -21,6 +21,7 @@ class Store:
         self.areas = {a["name"].lower(): a for a in _load("areas")}
         self.technicians = {t["id"]: t for t in _load("technicians")}
         self.sample_reports = _load("reports")
+        self.storm_reports = _load("storm")  # realistic outage burst for storm mode
         self.reports = {}
         self.faults = {}
         self.inspections = {}  # fault_id -> list of inspection results

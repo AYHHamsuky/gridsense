@@ -248,15 +248,20 @@ with tab_storm:
     hybrid = engine == "hybrid"
     if hybrid and not fast_ok:
         st.warning("Fast lane not configured. Set OPEN_BASE_URL / OPEN_API_KEY / OPEN_MODEL in .env.")
-    n = st.slider("Number of reports", 5, 150, 30)
+    scenarios = {"storm": "Realistic outage: 3 incidents + noise",
+                 "spread": "Stress test: evenly spread across all areas"}
+    scenario = st.segmented_control("Scenario", list(scenarios), format_func=scenarios.get,
+                                    default="storm", required=True)
+    n = st.slider("Number of reports", 5, 150, 150 if scenario == "storm" else 30)
     if st.button(f"Send {n} reports", type="primary"):
-        burst = api("GET", "/demo/samples", params={"n": n, "seed": int(time.time()), "labels": True})
+        burst = api("GET", "/demo/samples", params={"n": n, "seed": int(time.time()),
+                                                    "labels": True, "scenario": scenario})
         bar, feed = st.progress(0.0), st.empty()
         results, t0 = [], time.time()
         if hybrid:
             stats = {"fast_lane": 0, "escalated": 0}
-            for i in range(0, len(burst), 25):
-                chunk = burst[i:i + 25]
+            for i in range(0, len(burst), 50):
+                chunk = burst[i:i + 50]
                 try:
                     res = api("POST", "/reports/bulk", json={"reports": chunk})
                 except RuntimeError as e:
@@ -289,9 +294,13 @@ with tab_storm:
                   delta_color="off")
         if hybrid and results:
             esc = [r for r in results if r.get("lane") == "agent"]
+            safe = [r for r in results if r.get("lane") == "fast" and r.get("danger")]
             with st.expander(f"Escalated to Muse Spark agent ({len(esc)})"):
                 for r in esc:
                     st.markdown(f"`{r['report_id']}` · {r.get('escalation_reason')} → `{r.get('fault_id')}`")
+            with st.expander(f"Repeat danger reports attached in the fast lane with a safety reply ({len(safe)})"):
+                for r in safe:
+                    st.markdown(f"`{r['report_id']}` → `{r['fault_id']}` · {r['reply']}")
         fault_map(fault_frame(faults))
 
 # ---------- audit log ----------

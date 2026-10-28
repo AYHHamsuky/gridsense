@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app import fastlane, open_model
+from backend.app import fastlane, open_model, tools
 from backend.app.main import app
 from backend.app.store import store
 
@@ -66,7 +66,7 @@ def test_classify_many_survives_errors():
         return NS(choices=[NS(message=NS(content=nxt))])
 
     cli = NS(chat=NS(completions=NS(create=create)))
-    out = open_model.classify_many([{"text": "a"}, {"text": "b"}], workers=1, cli=cli)
+    out = open_model.classify_many([{"text": "a"}, {"text": "b"}], workers=1, cli=cli, batch=1)
     assert out[0]["fault_type"] == "meter" and "error" in out[1]
 
 
@@ -81,3 +81,61 @@ def test_bulk_endpoint_and_labels():
     with patch.object(open_model, "OPEN_BASE_URL", ""):
         r = c.post("/reports/bulk", json={"reports": s})
     assert r.status_code == 503 and "OPEN_BASE_URL" in r.json()["detail"]
+
+
+def test_repeat_danger_attaches_in_fast_lane_with_safety_reply():
+    def agent_opens_fault(report):
+        fid = tools.create_fault(report["id"], "FDR-02", "Kawo", "transformer", "Transformer fire")["fault"]["id"]
+        return {"fault_id": fid, "fault_type": "transformer", "reply": "Keep away"}
+
+    fire = cls(ft="transformer", area="Kawo", danger=True)
+    reports = [{"id": f"R{i}", "text": "Transformer yana ci da wuta"} for i in range(3)]
+    out = fastlane.process_bulk(reports, classify_fn=lambda rs: [fire for _ in rs],
+                                agent_fn=agent_opens_fault)
+    lanes = [r["lane"] for r in out["results"]]
+    assert lanes == ["agent", "fast", "fast"]  # only the first report of the fire escalates
+    assert len(store.faults) == 1 and len(store.faults["FLT-0001"]["report_ids"]) == 3
+    assert all("taba" in r["reply"] for r in out["results"][1:])  # Hausa safety warning
+
+
+def test_fast_lane_reply_language_and_safety():
+    assert "FLT-0009" in fastlane.reply("en", "FLT-0009", False)
+    assert "touch" in fastlane.reply("en", "FLT-0009", True)
+    assert "touch" not in fastlane.reply("en", "FLT-0009", False)
+    assert fastlane.reply(None, "FLT-0009", False).startswith("Thank you")
+
+
+def test_storm_scenario_collapses_into_few_faults():
+    """Ground truth alone (perfect classifier): 150 storm reports -> a handful of faults."""
+    c = TestClient(app)
+    burst = c.get("/demo/samples", params={"n": 150, "labels": True, "scenario": "storm"}).json()
+    keys = {(store.areas[r["area_hint"].lower()]["feeder_id"], r["expected_fault_type"]) for r in burst}
+    assert 5 <= len(keys) <= 8
+    spread = c.get("/demo/samples", params={"n": 150, "labels": True, "scenario": "spread"}).json()
+    assert len({r["area_hint"] for r in spread}) > len({r["area_hint"] for r in burst})
+
+
+def fake_cli(*replies):
+    calls, prompts = iter(replies), []
+
+    def create(**kw):
+        prompts.append(kw["messages"][0]["content"])
+        return NS(choices=[NS(message=NS(content=next(calls)))])
+    return NS(chat=NS(completions=NS(create=create))), prompts
+
+
+def test_classify_many_batches_reports_into_one_call():
+    arr = json.dumps([{"fault_type": "meter", "confidence": 0.9},
+                      {"fault_type": "line_down", "confidence": 0.8, "danger": True}])
+    cli, prompts = fake_cli(arr)
+    out = open_model.classify_many([{"text": "a"}, {"text": "b", "area_hint": "Kawo"}], cli=cli)
+    assert len(prompts) == 1 and "1. a" in prompts[0] and "2. b (customer area: Kawo)" in prompts[0]
+    assert [o["fault_type"] for o in out] == ["meter", "line_down"] and out[1]["danger"] is True
+
+
+def test_bad_batch_reply_falls_back_to_one_call_per_report():
+    cli, prompts = fake_cli('[{"fault_type": "meter"}]',  # wrong length -> fallback
+                            '{"fault_type": "meter", "confidence": 0.9}',
+                            '{"fault_type": "no_supply", "confidence": 0.7}')
+    out = open_model.classify_many([{"text": "a"}, {"text": "b"}], cli=cli)
+    assert len(prompts) == 3 and [o["fault_type"] for o in out] == ["meter", "no_supply"]

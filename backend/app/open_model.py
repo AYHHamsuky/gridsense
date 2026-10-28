@@ -17,16 +17,21 @@ from .tools import FAULT_TYPES
 
 _client = None
 
-PROMPT = """Classify this electricity outage report from Kaduna, Nigeria (Hausa or English).
-Return ONLY JSON:
-{"fault_type": one of %s,
+FIELDS = """{"fault_type": one of %s,
  "area": "<neighbourhood name mentioned, or empty>",
  "landmark": "<landmark mentioned, or empty>",
  "language": "ha" or "en",
  "danger": true if fire, smoke, sparks or a fallen wire is mentioned else false,
  "confidence": 0.0-1.0,
- "summary_en": "<max 12 words, English>"}
-Report: """ % FAULT_TYPES
+ "summary_en": "<max 12 words, English>"}""" % FAULT_TYPES
+PROMPT = ("Classify this electricity outage report from Kaduna, Nigeria (Hausa or English).\n"
+          "Return ONLY JSON:\n" + FIELDS + "\nReport: ")
+BATCH_PROMPT = ("Classify each electricity outage report below from Kaduna, Nigeria (Hausa or English).\n"
+                "Return ONLY a JSON array with one object per report, in the same order, each:\n"
+                + FIELDS + "\nReports:\n")
+# Reports per call. The model reasons once per call, so batching cuts tokens per report
+# ~4x; measured on Modal: 50 reports in 4.3s at 25/call vs 15.6s one per call.
+BATCH_SIZE = 25
 
 
 def enabled() -> bool:
@@ -49,6 +54,19 @@ def _parse(text: str) -> dict:
         out = json.loads(text[s:e + 1])
     except (ValueError, json.JSONDecodeError):
         return {"fault_type": "other", "confidence": 0.0, "parse_error": True}
+    return _normalise(out)
+
+
+def _parse_many(text: str, n: int) -> list[dict]:
+    """Parse a batch reply; raise if it is not a JSON array of exactly n objects."""
+    s, e = (text or "").find("["), (text or "").rfind("]")
+    out = json.loads((text or "")[s:e + 1]) if s != -1 else None
+    if not isinstance(out, list) or len(out) != n or not all(isinstance(o, dict) for o in out):
+        raise ValueError(f"expected a JSON array of {n} objects")
+    return [_normalise(o) for o in out]
+
+
+def _normalise(out: dict) -> dict:
     if out.get("fault_type") not in FAULT_TYPES:
         out["fault_type"], out["confidence"] = "other", 0.0
     try:
@@ -59,20 +77,34 @@ def _parse(text: str) -> dict:
     return out
 
 
-def classify(report: dict, cli=None) -> dict:
-    cli = cli or client()
+def _text(report: dict) -> str:
     text = report["text"]
     if report.get("area_hint"):
         text += f" (customer area: {report['area_hint']})"
+    return text
+
+
+def _complete(cli, prompt: str, max_tokens: int) -> str:
     # Reasoning tokens count toward max_tokens: leave room for the JSON after the thinking
     extra = {"reasoning_effort": OPEN_REASONING_EFFORT} if OPEN_REASONING_EFFORT else {}
     resp = cli.chat.completions.create(
-        model=OPEN_MODEL, temperature=0, max_tokens=1024,
-        messages=[{"role": "user", "content": PROMPT + text}], **extra)
-    return _parse(resp.choices[0].message.content)
+        model=OPEN_MODEL, temperature=0, max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}], **extra)
+    return resp.choices[0].message.content
 
 
-def classify_many(reports: list[dict], workers: int = 8, cli=None) -> list[dict]:
+def classify(report: dict, cli=None) -> dict:
+    return _parse(_complete(cli or client(), PROMPT + _text(report), 1024))
+
+
+def classify_batch(reports: list[dict], cli=None) -> list[dict]:
+    lines = "\n".join(f"{i + 1}. {_text(r)}" for i, r in enumerate(reports))
+    return _parse_many(_complete(cli or client(), BATCH_PROMPT + lines, 1024 + 200 * len(reports)),
+                       len(reports))
+
+
+def classify_many(reports: list[dict], workers: int = 16, cli=None,
+                  batch: int = BATCH_SIZE) -> list[dict]:
     cli = cli or client()
 
     def one(r):
@@ -81,5 +113,14 @@ def classify_many(reports: list[dict], workers: int = 8, cli=None) -> list[dict]
         except Exception as e:  # one bad call must not sink the batch
             return {"fault_type": "other", "confidence": 0.0, "error": str(e)}
 
+    def chunk(rs):
+        if len(rs) > 1:
+            try:
+                return classify_batch(rs, cli)
+            except Exception:  # unreadable batch reply: fall back to one report per call
+                pass
+        return [one(r) for r in rs]
+
+    chunks = [reports[i:i + batch] for i in range(0, len(reports), max(batch, 1))]
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        return list(ex.map(one, reports))
+        return [c for out in ex.map(chunk, chunks) for c in out]
