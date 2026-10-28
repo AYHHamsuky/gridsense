@@ -77,6 +77,7 @@ def test_bulk_endpoint_and_labels():
     with patch.object(fastlane, "process_bulk", lambda reps: {"results": [], "stats": {"reports": len(reps)}}):
         r = c.post("/reports/bulk", json={"reports": s})
     assert r.status_code == 200 and r.json()["stats"]["reports"] == 3
-    # not configured -> clear 503
-    r = c.post("/reports/bulk", json={"reports": s})
+    # not configured -> clear 503 (patched so a configured .env doesn't hit the real endpoint)
+    with patch.object(open_model, "OPEN_BASE_URL", ""):
+        r = c.post("/reports/bulk", json={"reports": s})
     assert r.status_code == 503 and "OPEN_BASE_URL" in r.json()["detail"]

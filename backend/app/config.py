@@ -15,6 +15,8 @@ SAM_MODEL = os.getenv("SAM_MODEL", "sam-3.1")
 OPEN_BASE_URL = os.getenv("OPEN_BASE_URL", "")
 OPEN_API_KEY = os.getenv("OPEN_API_KEY", "")
 OPEN_MODEL = os.getenv("OPEN_MODEL", "")
+# Muse Spark Open reasons before answering; "low" keeps classification fast
+OPEN_REASONING_EFFORT = os.getenv("OPEN_REASONING_EFFORT", "low")
 DATA_DIR = ROOT / "data"
 # Reports on the same feeder within this window are treated as one fault
 CLUSTER_WINDOW_MIN = int(os.getenv("CLUSTER_WINDOW_MIN", "120"))

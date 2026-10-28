@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from openai import OpenAI
 
-from .config import OPEN_API_KEY, OPEN_BASE_URL, OPEN_MODEL
+from .config import OPEN_API_KEY, OPEN_BASE_URL, OPEN_MODEL, OPEN_REASONING_EFFORT
 from .tools import FAULT_TYPES
 
 _client = None
@@ -64,9 +64,11 @@ def classify(report: dict, cli=None) -> dict:
     text = report["text"]
     if report.get("area_hint"):
         text += f" (customer area: {report['area_hint']})"
+    # Reasoning tokens count toward max_tokens: leave room for the JSON after the thinking
+    extra = {"reasoning_effort": OPEN_REASONING_EFFORT} if OPEN_REASONING_EFFORT else {}
     resp = cli.chat.completions.create(
-        model=OPEN_MODEL, temperature=0, max_tokens=200,
-        messages=[{"role": "user", "content": PROMPT + text}])
+        model=OPEN_MODEL, temperature=0, max_tokens=1024,
+        messages=[{"role": "user", "content": PROMPT + text}], **extra)
     return _parse(resp.choices[0].message.content)
 
 
