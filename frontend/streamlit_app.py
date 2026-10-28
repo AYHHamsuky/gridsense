@@ -186,6 +186,12 @@ with tab_dispatch:
                 v = d["verdict"]
                 st.warning(f"📷 Photo inspection ({d['phrase']}): **{v.get('verdict')}** "
                            f"({v.get('confidence')}) — {'; '.join(v.get('findings', []))}")
+            elif e["kind"] == "classify":
+                with st.expander(f"⚡ Muse Spark Open: {d.get('fault_type')} "
+                                 f"({d.get('confidence')}) · {e['report_id']}"):
+                    st.json(d)
+            elif e["kind"] == "escalate":
+                st.info(f"↗️ {e['report_id']} escalated to Muse Spark agent: {d['reason']}")
             else:
                 with st.expander(f"✅ final answer · {e['report_id']}"):
                     st.json(d)
@@ -232,21 +238,60 @@ with tab_inspect:
 
 # ---------- storm mode ----------
 with tab_storm:
-    st.caption("Replay a burst of synthetic customer reports and watch the agent "
-               "merge them into a handful of faults.")
-    n = st.slider("Number of reports", 5, 150, 20)
+    st.caption("Replay a burst of synthetic customer reports and watch them merge "
+               "into a handful of faults.")
+    fast_ok = bool(health.get("fast_lane"))
+    engines = {"hybrid": "⚡ Hybrid: Muse Spark Open fast lane + Muse Spark escalation",
+               "agent": "🧠 Full agent: Muse Spark on every report"}
+    engine = st.segmented_control("Engine", list(engines), format_func=engines.get,
+                                  default="hybrid" if fast_ok else "agent", required=True)
+    hybrid = engine == "hybrid"
+    if hybrid and not fast_ok:
+        st.warning("Fast lane not configured. Set OPEN_BASE_URL / OPEN_API_KEY / OPEN_MODEL in .env.")
+    n = st.slider("Number of reports", 5, 150, 30)
     if st.button(f"Send {n} reports", type="primary"):
-        burst = api("GET", "/demo/samples", params={"n": n, "seed": int(time.time())})
+        burst = api("GET", "/demo/samples", params={"n": n, "seed": int(time.time()), "labels": True})
         bar, feed = st.progress(0.0), st.empty()
-        for i, s in enumerate(burst, 1):
-            try:
-                fault_id = api("POST", "/reports", json=s)["result"].get("fault_id", "—")
-            except RuntimeError:
-                fault_id = "error"
-            feed.markdown(f"**{i}/{len(burst)}** · {s['text']}  →  `{fault_id}`")
-            bar.progress(i / len(burst))
+        results, t0 = [], time.time()
+        if hybrid:
+            stats = {"fast_lane": 0, "escalated": 0}
+            for i in range(0, len(burst), 25):
+                chunk = burst[i:i + 25]
+                try:
+                    res = api("POST", "/reports/bulk", json={"reports": chunk})
+                except RuntimeError as e:
+                    st.error(str(e))
+                    break
+                results += res["results"]
+                for k in stats:
+                    stats[k] += res["stats"][k]
+                feed.markdown(f"**{len(results)}/{len(burst)}** classified by Muse Spark Open · "
+                              f"{stats['fast_lane']} fast lane · {stats['escalated']} escalated to agent")
+                bar.progress(len(results) / len(burst))
+        else:
+            for i, s in enumerate(burst, 1):
+                try:
+                    results.append(api("POST", "/reports", json=s)["result"])
+                except RuntimeError as e:
+                    results.append({"error": str(e)})
+                feed.markdown(f"**{i}/{len(burst)}** · {s['text']}  →  "
+                              f"`{results[-1].get('fault_id', 'error')}`")
+                bar.progress(i / len(burst))
+        secs = time.time() - t0
         faults = api("GET", "/faults")
-        st.success(f"{len(burst)} reports → {len(faults)} faults")
+        scored = [(s["expected_fault_type"], r.get("fault_type")) for s, r in zip(burst, results)]
+        acc = sum(a == b for a, b in scored) / max(len(scored), 1)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Reports", len(results))
+        c2.metric("Faults", len(faults))
+        c3.metric("Fault-type accuracy", f"{acc:.0%}")
+        c4.metric("Time", f"{secs:.1f}s", f"{secs / max(len(results), 1):.2f}s / report",
+                  delta_color="off")
+        if hybrid and results:
+            esc = [r for r in results if r.get("lane") == "agent"]
+            with st.expander(f"Escalated to Muse Spark agent ({len(esc)})"):
+                for r in esc:
+                    st.markdown(f"`{r['report_id']}` · {r.get('escalation_reason')} → `{r.get('fault_id')}`")
         fault_map(fault_frame(faults))
 
 # ---------- audit log ----------
@@ -256,6 +301,7 @@ with tab_log:
     if not events:
         st.info("No agent activity yet.")
     for e in reversed(events):
-        label = {"tool": e["detail"].get("name", "tool"), "inspection": "photo inspection"}.get(e["kind"], "final")
+        label = {"tool": e["detail"].get("name", "tool"), "inspection": "photo inspection",
+                 "classify": "Muse Spark Open classify", "escalate": "escalated to agent"}.get(e["kind"], "final")
         with st.expander(f"{e['at'][11:19]} · {e['report_id']} · {label}"):
             st.json(e["detail"])
