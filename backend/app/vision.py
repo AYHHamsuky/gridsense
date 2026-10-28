@@ -12,7 +12,7 @@ import json
 import re
 
 import httpx
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from .config import AGENT_MODEL, META_BASE_URL, MODEL_API_KEY, SAM_MODEL
 from .meta_client import chat_client
@@ -86,8 +86,13 @@ def overlay(img: bytes, boxes: list[dict], label: str) -> str:
         sx, sy = im.width / max(b["w"], 1), im.height / max(b["h"], 1)
         xy = [b["x1"] * sx, b["y1"] * sy, b["x2"] * sx, b["y2"] * sy]
         d.rectangle(xy, outline=(255, 196, 0), width=max(3, im.width // 200))
-        tag = f"{label} {b.get('conf', '')}".strip()
-        d.text((xy[0] + 4, max(0, xy[1] - 14)), tag, fill=(255, 196, 0))
+        tag = f" SAM 3.1 · {label}" + (f" · {b['conf']:.2f} " if "conf" in b else " ")
+        font = ImageFont.load_default(size=max(16, im.width // 40))
+        tb = d.textbbox((0, 0), tag, font=font)
+        tw, th = tb[2] - tb[0], tb[3] - tb[1] + 8
+        ty = xy[1] - th if xy[1] - th >= 0 else xy[1]  # above the box, or inside if no room
+        d.rectangle([xy[0], ty, xy[0] + tw, ty + th], fill=(255, 196, 0))
+        d.text((xy[0], ty + 2), tag, fill=(20, 20, 20), font=font)
     buf = io.BytesIO()
     im.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
