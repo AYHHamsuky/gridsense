@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import agent, meta_client, vision
+from . import agent, fastlane, meta_client, open_model, vision
 from .store import store
 
 app = FastAPI(title="GridSense", version="0.1.0",
@@ -29,7 +29,8 @@ def _new_report(**kw):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "feeders": len(store.feeders), "technicians": len(store.technicians)}
+    return {"ok": True, "feeders": len(store.feeders), "technicians": len(store.technicians),
+            "fast_lane": open_model.enabled()}
 
 
 @app.post("/reports")
@@ -55,6 +56,20 @@ async def create_voice_report(audio: UploadFile = File(...), area_hint: str = Fo
         raise HTTPException(422, "No speech detected in the voice note")
     report = _new_report(text=text, area_hint=area_hint, phone=phone, channel="voice")
     return {"report_id": report["id"], "transcript": text, "result": agent.triage(report)}
+
+
+class BulkIn(BaseModel):
+    reports: list[ReportIn]
+
+
+@app.post("/reports/bulk")
+def bulk_reports(body: BulkIn):
+    """Outage spike: Muse Spark Open classifies in parallel; risky reports escalate to the agent."""
+    reports = [_new_report(**r.model_dump()) for r in body.reports]
+    try:
+        return fastlane.process_bulk(reports)
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
 
 
 @app.get("/faults")
@@ -110,12 +125,13 @@ def feeders():
 
 
 @app.get("/demo/samples")
-def samples(n: int = 20, seed: int = 0):
-    """Synthetic reports for storm-mode demos (ground-truth labels stripped)."""
+def samples(n: int = 20, seed: int = 0, labels: bool = False):
+    """Synthetic reports for storm-mode demos. labels=true adds ground truth for scoring."""
     import random
     pool = list(store.sample_reports)
     random.Random(seed).shuffle(pool)
     keep = ("customer_name", "phone", "channel", "text", "area_hint")
+    keep += ("expected_fault_type",) if labels else ()
     return [{k: r[k] for k in keep} for r in pool[:n]]
 
 

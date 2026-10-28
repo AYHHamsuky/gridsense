@@ -15,7 +15,8 @@ When a transformer fails in a Kaduna neighbourhood, hundreds of customers call o
 3. **Dispatch:** assigns a technician with the right skill, preferring someone who covers that feeder.
 4. **Repair check:** the technician uploads a photo; SAM 3.1 finds the transformer/pole/meter and Muse Spark decides if the repair is complete and safe before closing the fault.
 5. **Reply:** answers the customer in their own language with a fault ID and safety advice.
-6. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
+6. **Outage spikes:** a hybrid router sends routine reports through Muse Spark Open (open weights) and escalates anything dangerous or uncertain to the full Muse Spark agent.
+7. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
 
 ## Meta models used
 | Feature | Model | Status |
@@ -23,7 +24,7 @@ When a transformer fails in a Kaduna neighbourhood, hundreds of customers call o
 | Triage + dispatch agent (tool calling) | Muse Spark (`muse-spark-1.3`) | ✅ Day 1 |
 | Hausa/English voice notes | Muse Voice Transcribe (`muse-voice-transcribe-1.0`) | ✅ Day 1 |
 | Technician repair-photo check | SAM 3.1 (`sam-3.1`) + Muse Spark vision | ✅ Day 1 |
-| Bulk classification in outage spikes | Muse Spark Open (Baseten/Modal) | 🔜 |
+| Bulk classification in outage spikes (fast lane) | Muse Spark Open, open weights on Modal / Baseten | ✅ Day 2 |
 
 ## Quick start
 ```bash
@@ -43,12 +44,13 @@ pytest                        # offline tests (no API key needed)
 - **Dispatch dashboard:** live fault map, fault table, and the agent's step-by-step reasoning
 - **Technician inspection:** upload before/after photos; SAM 3.1 boxes the equipment, Muse Spark gives a verdict and closes the fault
 - **Agent log:** every tool call and verdict, newest first
-- **Storm mode:** replay up to 150 synthetic reports and watch them merge into a few faults
+- **Storm mode:** replay up to 150 synthetic reports and watch them merge into a few faults. Compare the **hybrid engine** (Muse Spark Open classifies everything in parallel; dangerous, low-confidence or unlocatable reports escalate to the Muse Spark agent) with the full agent: accuracy, speed and faults created
 
 ## API
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/reports` | Text report → agent triage |
+| POST | `/reports/bulk` | Outage spike: Muse Spark Open fast lane + agent escalation |
 | POST | `/reports/voice` | WAV voice note → transcribe → triage |
 | GET | `/faults` · `/faults/{id}` | Fault list / detail with reports + agent events |
 | POST | `/faults/{id}/inspection` | Repair photos → SAM 3.1 + Muse Spark verdict |

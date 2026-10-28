@@ -11,6 +11,10 @@ META_BASE_URL = os.getenv("META_BASE_URL", "https://api.meta.ai/v1")
 AGENT_MODEL = os.getenv("AGENT_MODEL", "muse-spark-1.3")
 TRANSCRIBE_MODEL = os.getenv("TRANSCRIBE_MODEL", "muse-voice-transcribe-1.0")
 SAM_MODEL = os.getenv("SAM_MODEL", "sam-3.1")
+# Open-weight fast lane (Muse Spark Open on Modal / Baseten, OpenAI-compatible)
+OPEN_BASE_URL = os.getenv("OPEN_BASE_URL", "")
+OPEN_API_KEY = os.getenv("OPEN_API_KEY", "")
+OPEN_MODEL = os.getenv("OPEN_MODEL", "")
 DATA_DIR = ROOT / "data"
 # Reports on the same feeder within this window are treated as one fault
 CLUSTER_WINDOW_MIN = int(os.getenv("CLUSTER_WINDOW_MIN", "120"))
