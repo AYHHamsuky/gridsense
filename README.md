@@ -15,8 +15,9 @@ When a transformer fails in a Kaduna neighbourhood, hundreds of customers call o
 3. **Dispatch:** assigns a technician with the right skill, preferring someone who covers that feeder.
 4. **Repair check:** the technician uploads a photo; SAM 3.1 finds the transformer/pole/meter and Muse Spark decides if the repair is complete and safe before closing the fault.
 5. **Reply:** answers the customer in their own language with a fault ID and safety advice.
-6. **Outage spikes:** a hybrid router sends routine reports through Muse Spark Open (open weights) and escalates anything dangerous or uncertain to the full Muse Spark agent.
-7. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
+6. **Close the loop:** when the repair photo passes, every customer whose report was merged into that fault gets a restoration message in their own language (Hausa or English), written by Muse Spark from the inspection. If the photo shows a safety issue, they get a follow-up warning instead.
+7. **Outage spikes:** a hybrid router sends routine reports through Muse Spark Open (open weights) and escalates anything dangerous or uncertain to the full Muse Spark agent.
+8. **Audit trail:** every tool call the agent makes is logged and shown on the dashboard.
 
 ## Meta models used
 | Feature | Model | Status |
@@ -42,7 +43,7 @@ pytest                        # offline tests (no API key needed)
 `frontend/streamlit_app.py` calls the API; set `GRIDSENSE_API_URL` if it is not on `http://127.0.0.1:8000`.
 - **Report an outage:** customer chat in Hausa/English, plus voice notes recorded in the browser
 - **Dispatch dashboard:** live fault map, fault table, and the agent's step-by-step reasoning
-- **Technician inspection:** upload before/after photos; SAM 3.1 boxes the equipment, Muse Spark gives a verdict and closes the fault
+- **Technician inspection:** upload before/after photos; SAM 3.1 boxes the equipment, Muse Spark gives a verdict and closes the fault, then every affected customer is notified in their language
 - **Agent log:** every tool call and verdict, newest first
 - **Storm mode:** replay up to 150 synthetic reports from a realistic outage (a burnt transformer at Kawo, a fallen line in Barnawa, low voltage in Malali, plus scattered meter faults) and watch them collapse into about 7 faults. Compare the **hybrid engine** (Muse Spark Open classifies reports in batches of 25; low-confidence or unlocatable reports, and the first report of each new fire or fallen wire, escalate to the Muse Spark agent; repeat danger reports attach in the fast lane with a safety reply) with the full agent: accuracy, speed and faults created. A stress-test scenario spreads reports evenly across every area and fault type instead.
 
@@ -54,6 +55,8 @@ pytest                        # offline tests (no API key needed)
 | POST | `/reports/voice` | WAV voice note → transcribe → triage |
 | GET | `/faults` · `/faults/{id}` | Fault list / detail with reports + agent events |
 | POST | `/faults/{id}/inspection` | Repair photos → SAM 3.1 + Muse Spark verdict |
+| GET | `/reports/{id}` | Customer status check: report, fault status, messages sent |
+| GET | `/notifications` | Outbox of customer messages (filter with `?fault_id=`) |
 | GET | `/events` | Agent audit log |
 | GET | `/feeders` | Feeders and areas (for the map) |
 | POST | `/demo/reset` | Reset demo state |

@@ -192,6 +192,9 @@ with tab_dispatch:
                     st.json(d)
             elif e["kind"] == "escalate":
                 st.info(f"↗️ {e['report_id']} escalated to Muse Spark agent: {d['reason']}")
+            elif e["kind"] == "notify":
+                st.success(f"📲 {d['kind']} message sent to {d['customers']} customers "
+                           f"({d['hausa']} Hausa, {d['english']} English)")
             else:
                 with st.expander(f"✅ final answer · {e['report_id']}"):
                     st.json(d)
@@ -235,6 +238,13 @@ with tab_inspect:
                 if v.get("safety_issues"):
                     st.error("Safety: " + "; ".join(v["safety_issues"]))
                 st.info(f"📣 {v.get('customer_message_en', '')}\n\n🗣️ {v.get('customer_message_ha', '')}")
+                sent = res.get("notifications", [])
+                if sent:
+                    ha = sum(n["language"] == "ha" for n in sent)
+                    st.success(f"📲 Notified **{len(sent)}** customers on {fid} "
+                               f"({ha} in Hausa, {len(sent) - ha} in English)")
+                    st.dataframe(pd.DataFrame(sent)[["customer_name", "phone", "language", "message"]],
+                                 width="stretch", hide_index=True)
 
 # ---------- storm mode ----------
 with tab_storm:
@@ -311,6 +321,7 @@ with tab_log:
         st.info("No agent activity yet.")
     for e in reversed(events):
         label = {"tool": e["detail"].get("name", "tool"), "inspection": "photo inspection",
-                 "classify": "Muse Spark Open classify", "escalate": "escalated to agent"}.get(e["kind"], "final")
+                 "classify": "Muse Spark Open classify", "escalate": "escalated to agent",
+                 "notify": "customers notified"}.get(e["kind"], "final")
         with st.expander(f"{e['at'][11:19]} · {e['report_id']} · {label}"):
             st.json(e["detail"])

@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import agent, fastlane, meta_client, open_model, vision
+from . import agent, fastlane, meta_client, notify, open_model, vision
 from .store import store
 
 app = FastAPI(title="GridSense", version="0.1.0",
@@ -104,14 +104,37 @@ async def inspect_fault(fault_id: str, after: UploadFile = File(...),
     store.inspections.setdefault(fault_id, []).append(result)
     store.log(fault_id, "inspection", {"phrase": result["phrase"], "detections": result["detections"],
                                        "verdict": v})
+    sent = []
     if v.get("verdict") == "resolved" and float(v.get("confidence", 0)) >= 0.6:
         f["status"] = "closed"
         if f["technician_id"] in store.technicians:
             store.technicians[f["technician_id"]]["available"] = True
+        sent = notify.notify_fault(f, "restored", v)
     elif v.get("verdict") == "unsafe":
         f["status"] = "unsafe_followup"
+        sent = notify.notify_fault(f, "followup", v)
     f["updated_at"] = datetime.now(timezone.utc).isoformat()
-    return {"fault_id": fault_id, "status": f["status"], **result}
+    return {"fault_id": fault_id, "status": f["status"], "notifications": sent, **result}
+
+
+@app.get("/reports/{report_id}")
+def report_status(report_id: str):
+    """Customer status check: their report, the fault it belongs to, and messages sent."""
+    r = store.reports.get(report_id)
+    if not r:
+        raise HTTPException(404, "report not found")
+    fid = (r.get("result") or {}).get("fault_id")
+    f = store.faults.get(fid) if fid else None
+    return {"report": r,
+            "fault": {k: f[k] for k in ("id", "status", "fault_type", "areas", "technician_id",
+                                        "updated_at")} if f else None,
+            "notifications": [n for n in store.notifications if n["report_id"] == report_id]}
+
+
+@app.get("/notifications")
+def notifications(fault_id: str = "", limit: int = 500):
+    out = [n for n in store.notifications if not fault_id or n["fault_id"] == fault_id]
+    return out[-limit:]
 
 
 @app.get("/events")

@@ -26,6 +26,7 @@ class Store:
         self.faults = {}
         self.inspections = {}  # fault_id -> list of inspection results
         self.events = []  # agent audit log: every tool call + reason
+        self.notifications = []  # outbox: messages to customers when a fault changes
         self._fault_seq = 0
 
     def next_fault_id(self):
